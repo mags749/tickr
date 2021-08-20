@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tickr/screens/homescreen.dart';
+import 'package:tickr/utils/theme.dart';
 
 class TickrApp extends StatelessWidget {
   // This widget is the root of your application.
@@ -7,9 +8,7 @@ class TickrApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Tickr App',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
+      theme: darkTheme,
       home: HomeScreen(title: 'Flutter Demo Home Page'),
       debugShowCheckedModeBanner: false,
     );

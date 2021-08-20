@@ -1,8 +1,10 @@
 import 'dart:async';
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
+import 'package:tickr/widgets/timeblock.dart';
 
 class HomeScreen extends StatefulWidget {
   HomeScreen({Key? key, required this.title}) : super(key: key);
@@ -13,14 +15,25 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _steps = 0;
-  int _stepDuration = 0;
+  bool _inProgress = false;
+  double _progress = 0;
   final _stepController = TextEditingController();
+  int _stepDuration = 0;
+  int _steps = 0;
   String _hour = '', _minute = '';
   TimeOfDay _selectedTime = TimeOfDay(hour: 00, minute: 00);
 
   void _toggleCounter() {
-    Timer.periodic(new Duration(seconds: _stepDuration), _decrementSteps);
+    if (_steps == 0) {
+      setState(() {
+        _steps = int.parse(_stepController.text);
+      });
+    }
+    if (!_inProgress)
+      Timer.periodic(new Duration(seconds: _stepDuration), _decrementSteps);
+    setState(() {
+      _inProgress = !_inProgress;
+    });
   }
 
   @override
@@ -30,15 +43,21 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _decrementSteps(Timer t) {
-    if (_steps == 0) {
+    if (!_inProgress) {
       t.cancel();
       setState(() {
+        _inProgress = !_inProgress;
+      });
+    }
+    setState(() {
+      if (_steps == 0) {
+        t.cancel();
         _steps = int.parse(_stepController.text);
-      });
-    } else
-      setState(() {
-        _steps--;
-      });
+      } else {
+        playLocalAsset();
+        _steps -= 1;
+      }
+    });
   }
 
   String _getStepCount() {
@@ -48,7 +67,6 @@ class _HomeScreenState extends State<HomeScreen> {
               int.parse(_stepController.text);
       setState(() {
         _stepDuration = value.floor();
-        _steps = int.parse(_stepController.text);
       });
       return value.floor().toString();
     } catch (e) {
@@ -66,9 +84,9 @@ class _HomeScreenState extends State<HomeScreen> {
               children: <Widget>[
                 Container(
                     margin: EdgeInsets.only(
-                        top: 0, left: 15, right: 15, bottom: 30),
+                        top: 5, left: 15, right: 15, bottom: 30),
                     decoration: BoxDecoration(
-                      color: Colors.green,
+                      color: Theme.of(context).backgroundColor,
                       borderRadius: BorderRadius.all(Radius.circular(15)),
                       boxShadow: [
                         BoxShadow(
@@ -81,33 +99,80 @@ class _HomeScreenState extends State<HomeScreen> {
                     height: MediaQuery.of(context).size.height * 0.7,
                     width: MediaQuery.of(context).size.width,
                     child: Column(
-                      mainAxisAlignment: MainAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: <Widget>[
-                        Text('Time'),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 20.0),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            children: [
+                              Text(
+                                'tickr',
+                                style: Theme.of(context).textTheme.headline2,
+                              ),
+                            ],
+                          ),
+                        ),
                         Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: [
-                            OutlinedButton(
-                              onPressed: () => _selectTime(context),
-                              child: Text('Save'),
-                              style: OutlinedButton.styleFrom(
-                                primary: Theme.of(context).accentColor,
-                                minimumSize: Size(88, 36),
-                                padding: EdgeInsets.symmetric(horizontal: 16),
-                                shape: const RoundedRectangleBorder(
-                                  borderRadius:
-                                      BorderRadius.all(Radius.circular(10)),
+                            Text(
+                              'Time',
+                              style: Theme.of(context).textTheme.headline4,
+                            ),
+                            GestureDetector(
+                              child: TimeBlock(num: _hour),
+                              onTap: () => _selectTime(context),
+                            ),
+                            GestureDetector(
+                              child: TimeBlock(num: _minute),
+                              onTap: () => _selectTime(context),
+                            ),
+                          ],
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            Text(
+                              "Steps",
+                              style: Theme.of(context).textTheme.headline4,
+                            ),
+                            SizedBox(
+                              height: 60,
+                              width: MediaQuery.of(context).size.width / 2 + 35,
+                              child: TextField(
+                                decoration: InputDecoration(
+                                  border: OutlineInputBorder(
+                                    borderSide: BorderSide(
+                                      color: Colors.red, //this has no effect
+                                    ),
+                                    borderRadius: BorderRadius.circular(10.0),
+                                  ),
+                                  filled: true,
+                                  fillColor:
+                                      Theme.of(context).scaffoldBackgroundColor,
                                 ),
+                                controller: _stepController,
+                                keyboardType: TextInputType.number,
+                                inputFormatters: <TextInputFormatter>[
+                                  FilteringTextInputFormatter.digitsOnly
+                                ],
+                                textAlign: TextAlign.right,
                               ),
                             ),
                           ],
                         ),
-                        Text("Steps"),
-                        TextField(
-                          controller: _stepController,
-                          keyboardType: TextInputType.number,
-                          inputFormatters: <TextInputFormatter>[
-                            FilteringTextInputFormatter.digitsOnly
-                          ], // Only numbers can be entered
+                        Container(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.only(
+                              bottomLeft: Radius.circular(15),
+                              bottomRight: Radius.circular(15),
+                            ),
+                            child: LinearProgressIndicator(
+                              value: _progress,
+                              minHeight: 100.0,
+                            ),
+                          ),
                         ),
                       ],
                     )),
@@ -120,41 +185,41 @@ class _HomeScreenState extends State<HomeScreen> {
                     onPressed: _toggleCounter,
                     tooltip: 'Start',
                     child: Icon(
-                      FeatherIcons.play,
+                      _inProgress ? FeatherIcons.pause : FeatherIcons.play,
                       size: 30,
                     ),
-                    backgroundColor: Colors.black,
                   ),
                 ),
               ],
             ),
-            Container(
-              margin: EdgeInsets.all(15),
-              width: MediaQuery.of(context).size.width,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  Column(
-                    children: [
-                      Text(
-                        '$_steps',
-                        style: Theme.of(context).textTheme.headline3,
-                      ),
-                      Text('Steps')
-                    ],
-                  ),
-                  Column(
-                    children: [
-                      Text(
-                        _getStepCount(),
-                        style: Theme.of(context).textTheme.headline3,
-                      ),
-                      Text('sec/Step')
-                    ],
-                  )
-                ],
+            if (_inProgress)
+              Container(
+                margin: EdgeInsets.all(15),
+                width: MediaQuery.of(context).size.width,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    Column(
+                      children: [
+                        Text(
+                          '$_steps',
+                          style: Theme.of(context).textTheme.headline3,
+                        ),
+                        Text('Steps')
+                      ],
+                    ),
+                    Column(
+                      children: [
+                        Text(
+                          _getStepCount(),
+                          style: Theme.of(context).textTheme.headline3,
+                        ),
+                        Text('sec/Step')
+                      ],
+                    )
+                  ],
+                ),
               ),
-            ),
           ],
         ),
       ),
@@ -177,5 +242,10 @@ class _HomeScreenState extends State<HomeScreen> {
         _minute = _selectedTime.minute.toString();
       });
     }
+  }
+
+  playLocalAsset() {
+    AudioCache cache = new AudioCache();
+    cache.play('bell.mp3');
   }
 }
